@@ -48,19 +48,19 @@ function console_log( $data ){
 function insertIfNot ($ifNotSql, $insertSql, $conn){
 	$searchRes = $conn -> query($ifNotSql);
 	if (!$searchRes->num_rows > 0) {
-		print_r($insertSql);
+		#print_r($insertSql);
 		$success = $conn -> query($insertSql);
 		if (!$success) {
-			print_r($insertSql);
+			#print_r($insertSql);
 			print_r($conn->error);
 		  #$msg = "insertIfNot Query failed for insert:" .$insertSql;
 		  #console_log( $msg );
 		}
-		if (!$conn -> commit()) {
+		/*if (!$conn -> commit()) {
 			$msg = "Commit failed";
 			console_log( $msg );
 		  exit();
-		}
+		}*/
 	}
 }
 
@@ -73,15 +73,16 @@ function insertIfNot ($ifNotSql, $insertSql, $conn){
 $mysqli = new mysqli("127.0.0.1", "root", "", "webcrawler");
 #mysqli_autocommit($mysqli,FALSE);
 $mysqli->query('SET AUTOCOMMIT = 1');
-$mysqli->query("INSERT INTO words (word) VALUES ('rhgdfy')");
 
-$insertSql = "INSERT INTO words (word) VALUES ('hallo?')";
-$ifNotSql = "SELECT word from words where word='hallo?'";
-insertIfNot($ifNotSql, $insertSql, $mysqli);
+#insert test
+#$mysqli->query("INSERT INTO words (word) VALUES ('rhgdfy')");
+#$insertSql = "INSERT INTO words (word) VALUES ('hallo?')";
+#$ifNotSql = "SELECT word from words where word='hallo?'";
+#insertIfNot($ifNotSql, $insertSql, $mysqli);
 
 if(isset($mysqli))
 {
-	$sql = "SELECT id, url from links";
+	$sql = "SELECT id, url from url";
 	$linkSearchRes = $mysqli->query($sql);
 			
 	if ($linkSearchRes->num_rows > 0) {
@@ -100,8 +101,8 @@ if(isset($mysqli))
 				#insert link
 				if(strcmp($l, "http://www.dhbw-heidenheim.de/javascript:linkTo_UnCryptMailto('nbjmup+tuvejfocfsbuvohAeicx.ifjefoifjn\/ef');"))
 				{
-					$insertSql = "INSERT INTO links(url) VALUES ('" .$l. "')";
-					$ifNotSql = "SELECT url from links where url='" .$l. "'";
+					$insertSql = "INSERT INTO url(url) VALUES ('" .$l. "')";
+					$ifNotSql = "SELECT url from url where url='" .$l. "'";
 					insertIfNot($ifNotSql, $insertSql, $mysqli);
 				}
 				
@@ -109,32 +110,32 @@ if(isset($mysqli))
 			
 			foreach($words as $w) {
 				#write words in db
-				$insertSql = "INSERT INTO words(word) VALUES ('" .$w. "')";
-				$ifNotSql = "SELECT word from words where word='" .$w. "'";
+				$insertSql = "INSERT INTO word(word) VALUES ('" .$w. "')";
+				$ifNotSql = "SELECT word from word where word='" .$w. "'";
 				insertIfNot($ifNotSql, $insertSql, $mysqli);
 				
 				#fill link table
-				$sql = "SELECT id from words where word='" .$w. "'";
+				$sql = "SELECT id from word where word='" .$w. "'";
 				$wordSearchRes = $mysqli->query($sql);
 				if ($wordSearchRes->num_rows > 0) {
 					while($wRow = $wordSearchRes->fetch_assoc()) {
-						$sql = "INSERT INTO words_links(id_link, id_word) VALUES ('". $lRow["id"]. "','" .$wRow["id"]. "')";
+						$sql = "INSERT INTO link(url_id, word_id) VALUES ('". $lRow["id"]. "','" .$wRow["id"]. "')";
 						$mysqli->query($sql);
-						if (!$mysqli -> commit()) {
+						/*if (!$mysqli -> commit()) {
 						  echo "Commit transaction failed";
 						  exit();
-						}
+						}*/
 					}
 				}
 			}
 			
 			#set link on crawled
-			$sql = "UPDATE links SET time_stamp = '1111-11-11' where id = '" .$lRow["id"]. "'";
+			/*$sql = "UPDATE url SET time_stamp = '1111-11-11' where id = '" .$lRow["id"]. "'";
 			$mysqli->query($sql);
 			if (!$mysqli -> commit()) {
 			  echo "Commit transaction failed";
 			  exit();
-			}
+			}*/
 		}
 	}
 }

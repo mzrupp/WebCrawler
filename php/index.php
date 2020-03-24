@@ -6,8 +6,8 @@
 <?php	
 	function addUrlDb()
 	{
-		#Einfügen einer neuen URL ohne timestamp (bzw. 0000-00-00)
-		$sql = "INSERT INTO links(url) VALUES ('" .$_POST["addUrl"]. "')";
+		#Einfügen einer neuen URL
+		$sql = "INSERT INTO url(url) VALUES ('" .$_POST["addUrl"]. "')";
 		$mysqli = new mysqli("127.0.0.1", "root", "", "webcrawler");
 		if(isset($mysqli))
 		{
@@ -27,14 +27,14 @@
 	function getSearchResult()
 	{
 		#URLs ausgeben mit suchwort sortiert nach anzahl
-		$sql  = "SELECT l.url, l.id, wl.id_word as idWord ";
-		$sql .= "FROM links l ";
+		$sql  = "SELECT u.url, u.id, l.word_id as idWord ";
+		$sql .= "FROM url u ";
 		$sql .= "INNER JOIN ";
-		$sql .= "(SELECT id_link, id_word, count(*) ";
-		$sql .= "FROM words_links " ;
-		$sql .= "WHERE id_word = (SELECT id FROM words WHERE word = '".$_POST["searchInput"]."') ";
-		$sql .= "GROUP BY id_link, id_word) wl ";
-		$sql .= "ON l.id = wl.id_link";
+		$sql .= "(SELECT url_id, word_id, count(*) ";
+		$sql .= "FROM link " ;
+		$sql .= "WHERE word_id = (SELECT id FROM word WHERE word = '".$_POST["searchInput"]."') ";
+		$sql .= "GROUP BY url_id, word_id) l ";
+		$sql .= "ON u.id = l.url_id";
 		#echo "<p>" .$sql. "</p>";
 		$mysqli = new mysqli("127.0.0.1", "root", "", "webcrawler");
 		if(isset($mysqli))
