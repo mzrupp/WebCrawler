@@ -15,7 +15,7 @@
 /* drop the webcrawler db if already exists */
 drop database if exists WEBCRAWLER;
 
-/* create new webcrawler db
+/* create new webcrawler db */
 create database WEBCRAWLER;
 
 /* select webcrawler db */
