@@ -39,16 +39,10 @@ create table WORD
 /* create table for linking urls and words */
 create table LINK
 (
-	ID			INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
-	URL_ID		INTEGER NOT NULL,
-	WORD_ID		INTEGER NOT NULL,
+	ID						INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
+	URL_ID					INTEGER NOT NULL,
+	WORD_ID					INTEGER NOT NULL,
+	NUMBER_OF_WORDS_IN_URL	INTEGER NOT NULL,
     FOREIGN KEY (URL_ID) REFERENCES URL(ID),
 	FOREIGN KEY (WORD_ID) REFERENCES WORD(ID)
 );
-
---insert into WORD(WORD) values ("Hallo");
-
---insert into URL(URL, TIMESTAMP) values ("http://www.google.de", CURRENT_TIMESTAMP());
-
---insert into LINK(URL_ID, WORD_ID) values (1, 1);
-
