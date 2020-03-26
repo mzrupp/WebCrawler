@@ -50,9 +50,8 @@ class Crawler {
 		if (!empty($this->markup)){
 			//preg_match_all('/<a([^>]+)\>(.*?)\<\/a\>/i', $this->markup, $links);
 			preg_match_all('/([A-Z]{0,1}[a-zäöüÄÖÜß]{1,})/', $this->markup, $words);
-			if(!empty($words))
-			{
-			$uniqueWords = array_count_values($words[1]);
+			if(!empty($words)){
+				$uniqueWords = array_count_values($words[1]);
 			}
 			return !empty($uniqueWords) ? $uniqueWords : FALSE;
 		}
@@ -68,7 +67,8 @@ function insertIfNot ($ifNotSql, $insertSql, $conn){
 	if (!$searchRes->num_rows > 0) {
 		$success = $conn -> query($insertSql);
 		if (!$success) {
-			print_r($conn->error);
+			console_log($conn->error);
+			return FALSE;
 		}
 		return TRUE;
 	}
@@ -145,7 +145,7 @@ function crawl ($url, $dbConn)
 				if(isset($result) && $result->num_rows > 0){
 					$firstRow = $result->fetch_row();
 					$wordId = $firstRow[0];				
-					$sql = "INSERT INTO link(url_id, word_id, anzahl) VALUES (". $urlId. "," .$wordId. "," .$w_count.")";
+					$sql = "INSERT INTO link(url_id, word_id, number_of_words_in_url) VALUES (". $urlId. "," .$wordId. "," .$w_count.")";
 					$dbConn->query($sql);
 				}
 			}
