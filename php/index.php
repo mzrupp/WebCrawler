@@ -7,7 +7,7 @@
 	function addUrlDb()
 	{
 		#Einfügen einer neuen URL
-		$sql = "INSERT INTO url(url) VALUES ('" .$_POST["addUrl"]. "')";
+		$sql = "INSERT INTO url(url, timestamp) VALUES ('" .$_POST["addUrl"]. "','0000-00-00')";
 		$mysqli = new mysqli("127.0.0.1", "root", "", "webcrawler");
 		if(isset($mysqli))
 		{
