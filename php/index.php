@@ -30,12 +30,14 @@
 		$sql  = "SELECT u.url, u.id, l.word_id as idWord ";
 		$sql .= "FROM url u ";
 		$sql .= "INNER JOIN ";
-		$sql .= "(SELECT url_id, word_id, count(*) ";
+		$sql .= "(SELECT url_id, word_id, count(*) as count ";
 		$sql .= "FROM link " ;
 		$sql .= "WHERE word_id = (SELECT id FROM word WHERE word = '".$_POST["searchInput"]."') ";
 		$sql .= "GROUP BY url_id, word_id) l ";
-		$sql .= "ON u.id = l.url_id";
+		$sql .= "ON u.id = l.url_id ";
+		$sql .= "ORDER BY l.count DESC";
 		#echo "<p>" .$sql. "</p>";
+		
 		$mysqli = new mysqli("127.0.0.1", "root", "", "webcrawler");
 		if(isset($mysqli))
 		{

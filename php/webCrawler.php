@@ -5,6 +5,16 @@ function console_log( $data ){
 	echo '</script>';
   }
 
+function shutDownFunction() { 
+    $error = error_get_last();
+    // fatal error, E_ERROR === 1
+    if (isset($error) && $error['type'] === E_ERROR) { 
+		echo "<p>Error: ".$error['message']."</p>";
+		echo "<p>You might want to set the maxium execution time on a higher value!</p>";
+		echo "<p>If you use xampp the execution time is increased in \xampp\php\php.ini, variable max_execution_time.</p>";
+    } 
+}
+
 class Crawler {
 	protected $markup = '';
 	public $base = '';
@@ -41,8 +51,13 @@ class Crawler {
 			//preg_match_all('/<a([^>]+)\>(.*?)\<\/a\>/i', $this->markup, $links);
 			//href=\"([^;\s]*?)\"
 			//preg_match_all('/href=\"(.*?)\"/i', $this->markup, $links);
-			preg_match_all('/href=\"([^;\s]*?)\"/i', $this->markup, $links);
-			return !empty($links[1]) ? $links[1] : FALSE;
+			preg_match_all('/href=\"([^;\s]*?)\"/i', $this->markup, $allLinks);
+			preg_match_all('/href=\"([^;\s]*?(\.css(\?){0,1}){1}[^;\s]*?)\"/i', $this->markup, $cssLinks);
+			if(!empty($allLinks[1]) && !empty($cssLinks[1])){
+				$links = array_diff($allLinks[1], $cssLinks[1]);
+			}
+
+			return !empty($links) ? $links : FALSE;
 		}
 	}
 
@@ -75,7 +90,7 @@ function insertIfNot ($ifNotSql, $insertSql, $conn){
 	return FALSE;
 }
 
-function crawl ($url, $dbConn)
+function crawl ($urlPrefix, $url, $dbConn)
 {
 	#get urlId and crawler object
 	$sql = "SELECT id from url where url = '".$url."'";
@@ -85,24 +100,17 @@ function crawl ($url, $dbConn)
 	if(isset($result) && $result->num_rows > 0){
 		$firstRow = $result->fetch_row();
 		$urlId = $firstRow[0];
-		$crawl = new Crawler($url);
+		$crawl = new Crawler($urlPrefix.$url);
 	}
-	console_log($url);
-	console_log($urlId);
-	console_log("----------------------");
-
-	if(isset($urlId) && isset($crawl) && strcmp($crawl->get('markup'), "invalidUri") !== 0 )
-	{
+	
+	if(isset($urlId) && isset($crawl) && strcmp($crawl->get('markup'), "invalidUri") !== 0 ){	
 		$words = $crawl->get('words');
 		$links = $crawl->get('links');
-		
+		$newLinks = array();
+
 		if($links !== FALSE && isset($links)){
 			#fill the url table with new urls
-			$newLinks = array();
 			foreach($links as $l) {
-				if (substr($l,0,7)!='http://' && substr($l,0,8)!='https://'){
-					$l = $crawl->base . "/" . $l;
-				}
 				$insertSql = "INSERT INTO url(url, timestamp) VALUES ('" .$l. "','0000-00-00')";
 				$ifNotSql = "SELECT url from url where url='" .$l. "'";
 				$success = insertIfNot($ifNotSql, $insertSql, $dbConn);
@@ -116,14 +124,6 @@ function crawl ($url, $dbConn)
 				exit();
 			}
 		}
-
-		#recursive crawling for new links 
-		if(isset($newLinks)){
-			foreach($newLinks as $l) {
-				crawl($l, $dbConn);
-			}
-		}
-		
 		
 		if(isset($words)){
 			#fill the word table with new words
@@ -164,14 +164,25 @@ function crawl ($url, $dbConn)
 			console_log( $msg );
 			exit();
 		}
+
+		#recursive crawling for new links 
+		if(isset($newLinks)){
+			foreach($newLinks as $l) {
+				#make url valid if necessary
+				if (substr($l,0,7)!='http://' && substr($l,0,8)!='https://'){
+					$urlPrefix = $crawl->base . "/";
+				}
+				crawl($urlPrefix, $l, $dbConn);
+			}
+		}
 	}
 	else {
-		#delete invali
+		#delete invalid url
 		if(isset($urlId)){
 			$sql = "DELETE from url where id = $urlId";
 			$dbConn->query($sql);
 			if (!$dbConn -> commit()) {
-				$msg = "Delete Timestamp Commit failed";
+				$msg = "Delete Url Commit failed";
 				console_log( $msg );
 				exit();
 			}
@@ -180,8 +191,12 @@ function crawl ($url, $dbConn)
 }
 
 /* START OF THE PROGRAMM */
+
+
 $dbConn = new mysqli("127.0.0.1", "root", "", "webcrawler");
 mysqli_autocommit($dbConn,FALSE);
+register_shutdown_function('shutDownFunction');
+
 try{
 	if(isset($dbConn))
 	{
@@ -191,16 +206,19 @@ try{
 		if (isset($result) && $result->num_rows > 0) {
 			while($lRow = $result->fetch_assoc()) {
 				$url = $lRow["url"];
-				crawl($url, $dbConn);
+				#make url valid if necessary
+				if (substr($url,0,7)!='http://' && substr($url,0,8)!='https://'){
+					$urlPrefix = "http://";
+				}
+				crawl($urlPrefix, $url, $dbConn);
 			}
 		}
 	}
 }
-catch (Exception $e){
-	console_log("Exception abgefangen:".$e->getMessage());
+catch (Error $e){
+	console_log("Error abgefangen:".$e->getMessage());
 }
 finally{
-	console_log("Finally block executed");
 	$dbConn->close();
 }
 
