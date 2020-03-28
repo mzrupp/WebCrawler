@@ -11,7 +11,7 @@ function shutDownFunction() {
     if (isset($error) && $error['type'] === E_ERROR) { 
 		echo "<p>Error: ".$error['message']."</p>";
 		echo "<p>You might want to set the maxium execution time on a higher value!</p>";
-		echo "<p>If you use xampp the execution time is increased in \xampp\php\php.ini, variable max_execution_time.</p>";
+		echo "<p>If you use xampp the execution time is increased in xampp\php\php.ini, variable max_execution_time.</p>";
     } 
 }
 
@@ -90,7 +90,7 @@ function insertIfNot ($ifNotSql, $insertSql, $conn){
 	return FALSE;
 }
 
-function crawl ($urlPrefix, $url, $dbConn)
+function crawl ($parentUrl, $url, $dbConn)
 {
 	#get urlId and crawler object
 	$sql = "SELECT id from url where url = '".$url."'";
@@ -100,7 +100,7 @@ function crawl ($urlPrefix, $url, $dbConn)
 	if(isset($result) && $result->num_rows > 0){
 		$firstRow = $result->fetch_row();
 		$urlId = $firstRow[0];
-		$crawl = new Crawler($urlPrefix.$url);
+		$crawl = new Crawler($parentUrl.$url);
 	}
 	
 	if(isset($urlId) && isset($crawl) && strcmp($crawl->get('markup'), "invalidUri") !== 0 ){	
@@ -109,13 +109,21 @@ function crawl ($urlPrefix, $url, $dbConn)
 		$newLinks = array();
 
 		if($links !== FALSE && isset($links)){
+
 			#fill the url table with new urls
 			foreach($links as $l) {
-				$insertSql = "INSERT INTO url(url, timestamp) VALUES ('" .$l. "','0000-00-00')";
-				$ifNotSql = "SELECT url from url where url='" .$l. "'";
-				$success = insertIfNot($ifNotSql, $insertSql, $dbConn);
-				if ($success) {
-					array_push($newLinks, $l);	
+				if($l != $url){
+					$parentUrl = "";
+					if (substr($l,0,7)!='http://' && substr($l,0,8)!='https://'){
+						$parentUrl = $crawl->base . "/";
+					}
+					$completeUrl = $parentUrl.$l;
+					$insertSql = "INSERT INTO url(url, timestamp) VALUES ('" .$completeUrl. "','0000-00-00')";
+					$ifNotSql = "SELECT url from url where url='" .$completeUrl. "'";
+					$success = insertIfNot($ifNotSql, $insertSql, $dbConn);
+					if ($success) {
+						array_push($newLinks, $l);	
+					}
 				}
 			}
 			if (!$dbConn -> commit()) {
@@ -168,11 +176,11 @@ function crawl ($urlPrefix, $url, $dbConn)
 		#recursive crawling for new links 
 		if(isset($newLinks)){
 			foreach($newLinks as $l) {
-				#make url valid if necessary
+				$parentUrl = "";
 				if (substr($l,0,7)!='http://' && substr($l,0,8)!='https://'){
-					$urlPrefix = $crawl->base . "/";
+					$parentUrl = $crawl->base . "/";
 				}
-				crawl($urlPrefix, $l, $dbConn);
+				crawl($parentUrl, $l, $dbConn);
 			}
 		}
 	}
@@ -207,10 +215,11 @@ try{
 			while($lRow = $result->fetch_assoc()) {
 				$url = $lRow["url"];
 				#make url valid if necessary
+				$parentUrl="";
 				if (substr($url,0,7)!='http://' && substr($url,0,8)!='https://'){
-					$urlPrefix = "http://";
+					$parentUrl = "http://";
 				}
-				crawl($urlPrefix, $url, $dbConn);
+				crawl($parentUrl, $url, $dbConn);
 			}
 		}
 	}

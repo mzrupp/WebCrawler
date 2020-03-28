@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>TEST</title>
+<title>DHBW Search - Admin</title>
 </head>
 <?php	
 	function addUrlDb()
@@ -53,7 +53,7 @@
 <form action="index.php" method="post">
   <label for="addUrl">DHBW Add URL to Database:</label>
   <input type="text" id="addUrl" name="addUrl"><br><br>
-  <text> (no http, only www.xyz.de)<br>
+  <text> (http://www.xyz.de or only www.xyz.de)<br>
   <input type="submit" value="Daten absenden" name="urlSubmit">
 </form>
 <hr>
