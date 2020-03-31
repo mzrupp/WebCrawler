@@ -1,227 +1,299 @@
 <?php
+/*#########################*/
+/*####### Functions #######*/
+/*#########################*/
+
 function console_log( $data ){
+	
 	echo '<script>';
 	echo 'console.log('. json_encode( $data ) .')';
 	echo '</script>';
-  }
+}
 
-function shutDownFunction() { 
+function shutdownFunction() { 
+
     $error = error_get_last();
-    // fatal error, E_ERROR === 1
-    if (isset($error) && $error['type'] === E_ERROR) { 
+	
+    if ( isset( $error ) && $error[ 'type' ] === E_ERROR ) { 
+	
 		echo "<p>Error: ".$error['message']."</p>";
 		echo "<p>You might want to set the maxium execution time on a higher value!</p>";
 		echo "<p>If you use xampp the execution time is increased in xampp\php\php.ini, variable max_execution_time.</p>";
     } 
 }
+/*###########################*/
+/*#### WEB-CRAWLER CLASS ####*/
+/*###########################*/
 
 class Crawler {
+	
 	protected $markup = '';
-	public $base = '';
+	
+	protected $id;
+	
+	protected $baseUrl;
 
-	public function __construct($uri) {
-		$this->base = $uri;
-		$this->markup = $this->getMarkup($uri);
+	public function __construct( $id, $url ) {
+		
+		$this->id = $id;
+		$this->baseUrl = $url;
+		$this->markup = $this->getMarkup($url);
 	}
 	
-	public function getMarkup($uri) {
-		$content = @file_get_contents($uri);
+	public function getMarkup() {
+		
+		$content = @file_get_contents( $this->baseUrl );
+		
 		if($content === FALSE) {
-			return "invalidUri";
+			return "invalid url";
 		}
+		
 		return $content;
 	}
 
-	public function get($type) {
+	public function get( $type) {
+		
 		$method = "_get_{$type}";
-		if (method_exists($this, $method)){
-			return call_user_func(array($this, $method));
+		
+		if( method_exists( $this, $method ) ){
+			
+			return call_user_func( array( $this, $method ) );
 		}
 	}
 
 	protected function _get_images() {
-		if (!empty($this->markup)){
-			preg_match_all('/<img([^>]+)\/>/i', $this->markup, $images);
+		
+		if ( !empty($this->markup) ){
+			
+			preg_match_all( '/<img([^>]+)\/>/i', $this->markup, $images );
+			
 			return !empty($images[1]) ? $images[1] : FALSE;
 		}
 	}
 
 	protected function _get_links() {
+		
 		if (!empty($this->markup)){
-			//preg_match_all('/<a([^>]+)\>(.*?)\<\/a\>/i', $this->markup, $links);
-			//href=\"([^;\s]*?)\"
-			//preg_match_all('/href=\"(.*?)\"/i', $this->markup, $links);
-			preg_match_all('/href=\"([^;\s]*?)\"/i', $this->markup, $allLinks);
-			preg_match_all('/href=\"([^;\s]*?(\.css(\?){0,1}){1}[^;\s]*?)\"/i', $this->markup, $cssLinks);
-			if(!empty($allLinks[1]) && !empty($cssLinks[1])){
-				$links = array_diff($allLinks[1], $cssLinks[1]);
+			
+			preg_match_all( '/href=\"([^;\s]*?)\"/i', $this->markup, $allLinks );
+			preg_match_all( '/href=\"([^;\s]*?(\.css(\?){0,1}){1}[^;\s]*?)\"/i', $this->markup, $cssLinks );
+			
+			if( !empty( $allLinks[1] ) && !empty( $cssLinks[1] ) ){
+				
+				$links = array_diff( $allLinks[1], $cssLinks[1] );
 			}
 
-			return !empty($links) ? $links : FALSE;
+			return !empty( $links ) ? $links : FALSE;
 		}
 	}
 
 	protected function _get_words(){
+		
 		if (!empty($this->markup)){
-			//preg_match_all('/<a([^>]+)\>(.*?)\<\/a\>/i', $this->markup, $links);
-			preg_match_all('/([A-Z]{0,1}[a-zäöüÄÖÜß]{1,})/', $this->markup, $words);
-			if(!empty($words)){
-				$uniqueWords = array_count_values($words[1]);
+			
+			$temp = [];
+			$words = explode(" ", preg_replace( '(<script.*<\/script>|<[^>]*?>|<!--|-->|\s|[\)\("„“|,:/+?]|&#[0-9]*;|_[-]_)', ' ', $this->markup ) );
+			
+			foreach( $words as $word ){
+				if( isset( $word ) && !empty( $word ) ){
+					
+					if( preg_match( '/.*[.]/', $word ) ){
+						
+						$abbreviations_de = array( 'allg.', 'bzw.', 'bspw.', 'd.h.','etc.', 'evtl.', 'geb.', 'ggf.', 'n. Chr.', 's.o.', 's.u.', 'usw.', 'v. Chr.', 'vgl.', 'z.B.' );
+						if ( !in_array( $word, $abbreviations_de ) ) {
+							$word = rtrim( $word, '.' );
+						}
+					}
+					
+					$word = html_entity_decode( $word );
+					
+					array_push( $temp, $word );
+				}
 			}
-			return !empty($uniqueWords) ? $uniqueWords : FALSE;
+			
+			$words = $temp;
+
+			if( !empty( $words ) ){
+				
+				$uniqueWords = array_count_values( $words );
+			}
+			
+			return !empty( $uniqueWords ) ? $uniqueWords : FALSE;
 		}
 	}
 
 	protected function _get_markup(){
+		
 		return $this->markup;
 	}
 }
 
-function insertIfNot ($ifNotSql, $insertSql, $conn){
-	$searchRes = $conn -> query($ifNotSql);
-	if (!$searchRes->num_rows > 0) {
-		$success = $conn -> query($insertSql);
-		if (!$success) {
-			console_log($conn->error);
-			return FALSE;
-		}
-		return TRUE;
+function updateCrawledURL( $id, $dbConn ){
+		
+	//update the timestamp of 
+	$sql = 'update url set timestamp = NOW() where id = ' .$id;
+	$result = $dbConn->query($sql);
+			
+	if ( !$dbConn -> commit() ) {
+		$msg = 'Failed updating timestamp of url with id: ' .$id;
+		console_log( $msg );
+			
+		exit();
 	}
-	return FALSE;
 }
 
-function crawl ($parentUrl, $url, $dbConn)
-{
-	#get urlId and crawler object
-	$sql = "SELECT id from url where url = '".$url."'";
-	$result = $dbConn->query($sql);
-	$urlId = null;
-	$crawl = null;
-	if(isset($result) && $result->num_rows > 0){
-		$firstRow = $result->fetch_row();
-		$urlId = $firstRow[0];
-		$crawl = new Crawler($parentUrl.$url);
-	}
-	
-	if(isset($urlId) && isset($crawl) && strcmp($crawl->get('markup'), "invalidUri") !== 0 ){	
-		$words = $crawl->get('words');
-		$links = $crawl->get('links');
-		$newLinks = array();
+function crawl ( $id, $url, $dbConn ){
 
-		if($links !== FALSE && isset($links)){
+	$crawler = new Crawler( $id, $url );
 
-			#fill the url table with new urls
-			foreach($links as $l) {
-				if($l != $url){
-					$parentUrl = "";
-					if (substr($l,0,7)!='http://' && substr($l,0,8)!='https://'){
-						$parentUrl = $crawl->base . "/";
-					}
-					$completeUrl = $parentUrl.$l;
-					$insertSql = "INSERT INTO url(url, timestamp) VALUES ('" .$completeUrl. "','0000-00-00')";
-					$ifNotSql = "SELECT url from url where url='" .$completeUrl. "'";
-					$success = insertIfNot($ifNotSql, $insertSql, $dbConn);
-					if ($success) {
-						array_push($newLinks, $l);	
-					}
+	if( isset( $crawler ) && strcmp( $crawler->get( 'markup' ), "invalid url" ) !== 0  ){	
+
+		//get all words of url website
+		$words = $crawler->get( 'words' );
+			
+		//get all links of url website
+		$links = $crawler->get( 'links' );
+
+		//update url
+		updateCrawledURL( $id, $dbConn );
+
+		if( isset( $words ) ){
+				
+			//loop over words
+			foreach ( $words as $word => $count ){
+				
+				//escape word &uuml; -> ü, &ouml; -> ö, ...
+				$word = $dbConn->real_escape_string( $word );
+				
+				$sql = 'select id from word where word = "' .$word. '"';
+				$result = $dbConn->query( $sql );
+					
+				$wordId;
+					
+				//check if word is already in database
+				if ( isset( $result ) && !empty( $result ) && ($result->num_rows > 0) ) {
+						
+					//if in database get wordId
+					$row = $result->fetch_array( MYSQLI_ASSOC );
+					$wordId = $row[ 'id' ];
+				}
+				else{
+						
+					//else insert word
+					$sql = 'insert into word(word) values("' .$word. '")';
+					$dbConn->query( $sql );
+					
+					//get the id of the current insert word
+					$wordId = $dbConn->insert_id;
+				}	
+						
+				//insert url-word link
+				$sql = "insert into link(url_id, word_id, number_of_words_in_url) values (" . $id. "," .$wordId. "," .$count. ")";
+				$dbConn->query($sql);
+						
+			}
+				
+			if ( !$dbConn -> commit() ) {
+					
+				$msg = "Failed insert words";
+				console_log( $msg );
+					
+				exit();
+			}		
+		}
+
+		if($links !== FALSE && isset( $links ) ){
+				
+			//loop over links
+			foreach( $links as $link ) {			
+					
+				//handle links which looks like /folder/folder/page.html or .../folder/folder/page.html
+				if ( ( substr( $link, 0, 7 ) != 'http://' ) && ( substr( $link , 0, 8 ) != 'https://' ) ){
+					
+						$host_url = parse_url($url, PHP_URL_HOST);
+						
+						if ( ( substr( $host_url, 0, 7 ) != 'http://' ) && ( substr( $host_url , 0, 8 ) != 'https://' ) ){
+							$host_url = "http://" .$host_url;
+						}
+						
+						$link = $host_url. "/" .$link;
+				}
+					
+				if( $link != $url ){
+								
+					//insert link url
+					$sql = 'insert into url(url, timestamp) values ("' .$link. '", "0000-00-00")';
+					$dbConn->query( $sql );
+						
+					//get the id of the current insert url
+					$id = $dbConn->insert_id;
+
+					//if webCrawler should be recursive comment in and set autocommit = TRUE
+					#crawl( $id, $link, $url);
 				}
 			}
-			if (!$dbConn -> commit()) {
-				$msg = "Url Commit failed";
+			if ( !$dbConn -> commit() ) {
+					
+				$msg = "Failed insert link";
 				console_log( $msg );
 				exit();
 			}
 		}
-		
-		if(isset($words)){
-			#fill the word table with new words
-			foreach($words as $w => $w_count) {
-				$insertSql = "INSERT INTO word(word) VALUES ('" .$w. "')";
-				$ifNotSql = "SELECT word from word where word='" .$w. "'";
-				insertIfNot($ifNotSql, $insertSql, $dbConn);
-			}
-			if (!$dbConn -> commit()) {
-				$msg = "Word Commit failed";
-				console_log( $msg );
-				exit();
-			}
 
-			#fill the link table
-			foreach($words as $w => $w_count) {
-				$sql = "SELECT id from word where word='" .$w. "'";
-				$result = $dbConn->query($sql);
-				if(isset($result) && $result->num_rows > 0){
-					$firstRow = $result->fetch_row();
-					$wordId = $firstRow[0];				
-					$sql = "INSERT INTO link(url_id, word_id, number_of_words_in_url) VALUES (". $urlId. "," .$wordId. "," .$w_count.")";
-					$dbConn->query($sql);
-				}
-			}
-			if (!$dbConn -> commit()) {
-				$msg = "Link Commit failed";
-				console_log( $msg );
-				exit();
-			}			
-		}
-
-		#set link on crawled
-		$sql = "UPDATE url SET timestamp = CURRENT_TIME() where id = " .$urlId;
-		$dbConn->query($sql);
-		if (!$dbConn -> commit()) {
-			$msg = "Update Timestamp Commit failed";
-			console_log( $msg );
-			exit();
-		}
-
-		#recursive crawling for new links 
-		if(isset($newLinks)){
-			foreach($newLinks as $l) {
-				$parentUrl = "";
-				if (substr($l,0,7)!='http://' && substr($l,0,8)!='https://'){
-					$parentUrl = $crawl->base . "/";
-				}
-				crawl($parentUrl, $l, $dbConn);
-			}
-		}
 	}
 	else {
-		#delete invalid url
-		if(isset($urlId)){
-			$sql = "DELETE from url where id = $urlId";
-			$dbConn->query($sql);
-			if (!$dbConn -> commit()) {
-				$msg = "Delete Url Commit failed";
+		
+		//delete unvalid url
+		if( isset( $url ) ){
+				
+			$sql = 'delete from url where id =' .$id;
+			$dbConn->query( $sql );
+				
+			if ( !$dbConn -> commit() ) {
+					
+				$msg = "Failed delete url";
 				console_log( $msg );
+					
 				exit();
 			}
 		}
 	}
 }
 
-/* START OF THE PROGRAMM */
+/*###############################*/
+/*#### START OF THE PROGRAMM ####*/
+/*###############################*/
 
-
+//open new database connection
 $dbConn = new mysqli("127.0.0.1", "root", "", "webcrawler");
-mysqli_autocommit($dbConn,FALSE);
-register_shutdown_function('shutDownFunction');
+
+//set autocommit to false
+mysqli_autocommit( $dbConn, FALSE );
+
+//register shutdown function
+register_shutdown_function('shutdownFunction');
 
 try{
-	if(isset($dbConn))
+	if( isset( $dbConn ) )
 	{
-		$sql = "SELECT id, url from url where timestamp = 0000-00-00";
-		$result = $dbConn->query($sql);
+		#while(true){ //if crawler should be running all the time comment in while loop
+			
+			//get all url's were timestamp = 0000-00-00 (initial value when insert via gui) or which aren't crawled since the last ten minutes
+			$sql = 'select id, url from url where timestamp = 0000-00-00 or TIMESTAMPDIFF(MINUTE, timestamp, NOW()) >= 10';
+			$result = $dbConn->query( $sql );
 				
-		if (isset($result) && $result->num_rows > 0) {
-			while($lRow = $result->fetch_assoc()) {
-				$url = $lRow["url"];
-				#make url valid if necessary
-				$parentUrl="";
-				if (substr($url,0,7)!='http://' && substr($url,0,8)!='https://'){
-					$parentUrl = "http://";
+			if ( isset( $result ) && ($result->num_rows > 0) ) {
+
+				while( $row = $result->fetch_assoc() ) {
+					
+					$id = $row['id'];
+					$url = $row['url'];
+					
+					//call crawl function
+					crawl( $id, $url, $dbConn );
 				}
-				crawl($parentUrl, $url, $dbConn);
 			}
-		}
+		#} //if crawler should be running all the time comment in while loop
 	}
 }
 catch (Error $e){
@@ -230,11 +302,15 @@ catch (Error $e){
 finally{
 	$dbConn->close();
 }
-
 ?>
+
+
 <html>
-<body>
-<h2>Webcrawler</h2>
-<p>Alle Urls wurden bearbeitet!</p>
-</body>
+	<head>
+		<title>WebCrawler</title>
+	</head>
+	<body>
+		<h2>Webcrawler</h2>
+		<p>Alle Urls wurden bearbeitet!</p>
+	</body>
 </html>
