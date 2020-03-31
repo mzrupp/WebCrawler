@@ -2,6 +2,11 @@
 
 WebCrawler project of Niklas Rapp & Moritz Rupp.
 
+- Der WebCrawler wurde mit XAMPP getestet.
+- localhost/[dir]/index.php (Startseite und Suche)
+- localhost/[dir]/webCrawler.php (WebCrawler)
+
+
 TODO
 --
 
